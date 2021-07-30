@@ -1,16 +1,76 @@
 <script>
-  let apiKey = "";
-  let title = "";
-  let description = "";
-  let price = "";
-  let listingId = "";
-  let sellerId = "";
-  let imageUrl = "";
-  let buttonDisabled = false;
+  import { onMount } from "svelte";
+  import { initialiseTripartie, createTemplate } from "./tripartie.js";
 
-  const formSubmit = (e) => {
+  let cache = {};
+
+  let apiKey = cache.apiKey || "";
+  let title = cache.title || "";
+  let description = cache.description || "";
+  let currency = cache.currency || "EUR";
+  let price = cache.price || "";
+  let listingId = cache.listingId || "";
+  let sellerId = cache.sellerId || "";
+  let sellerEmail = cache.sellerEmail || "";
+  let pictureFiles = [];
+  let listingUrl = cache.listingUrl || "";
+  let buttonDisabled = false;
+  let message = { error: false, text: "" };
+  let loading = false;
+
+  onMount(() => {
+    const storedCache = localStorage.getItem("cache");
+    if (storedCache) {
+      try {
+        cache = JSON.parse(storedCache);
+        apiKey = cache.apiKey;
+        title = cache.title;
+        description = cache.description;
+        currency = cache.currency;
+        price = cache.price;
+        listingId = cache.listingId;
+        sellerId = cache.sellerId;
+        sellerEmail = cache.sellerEmail;
+        listingUrl = cache.listingUrl;
+      } catch (e) {
+        cache = {};
+      }
+    }
+  });
+
+  const showMessage = (text, error = false) => {
+    message = { error, text };
+  };
+
+  const formSubmit = async (e) => {
     e.preventDefault();
-    console.log("Gotcha!");
+    showMessage("");
+    try {
+      loading = true;
+      console.log(cache);
+      localStorage.setItem("cache", JSON.stringify(cache));
+      await createTemplate(
+        sellerId,
+        sellerEmail,
+        title,
+        description,
+        price,
+        currency,
+        listingId,
+        pictureFiles[0],
+        listingUrl
+      );
+      showMessage("Template created. Check admin dashboard to find it.");
+    } catch (e) {
+      console.log(e);
+      showMessage(e.error.message || e.message || e.response.text, true);
+    } finally {
+      loading = false;
+    }
+  };
+
+  const cleanCache = () => {
+    localStorage.removeItem("cache");
   };
 
   $: buttonDisabled =
@@ -18,12 +78,33 @@
     !title ||
     !description ||
     !price ||
+    !currency ||
     !listingId ||
     !sellerId ||
-    !imageUrl;
+    !sellerEmail ||
+    !listingUrl;
+
+  $: initialiseTripartie(apiKey);
+
+  $: cache = {
+    apiKey,
+    sellerId,
+    sellerEmail,
+    title,
+    description,
+    price,
+    currency,
+    listingId,
+    listingUrl,
+  };
 </script>
 
 <main>
+  {#if message.text}
+    <div class="message" class:error={message.error}>
+      {message.text}
+    </div>
+  {/if}
   <h3>Input data below</h3>
   <form on:submit={formSubmit}>
     <div class="input">
@@ -48,7 +129,7 @@
     </div>
     <div class="input">
       <label for="description">Description</label>
-      <input
+      <textarea
         type="text"
         name="description"
         id="description"
@@ -57,7 +138,14 @@
       />
     </div>
     <div class="input">
-      <label for="price">Price</label>
+      <label for="currency">Currency</label>
+      <select name="currency" bind:value={currency}>
+        <option value="EUR">Euro</option>
+        <option value="CHF">Swiss Franc</option>
+      </select>
+    </div>
+    <div class="input">
+      <label for="price">Price in {currency}</label>
       <input
         type="number"
         name="price"
@@ -67,12 +155,12 @@
       />
     </div>
     <div class="input">
-      <label for="listing-id">Listing ID</label>
+      <label for="template-id">Template ID</label>
       <input
-        type="number"
-        name="listing-id"
-        id="listing-id"
-        placeholder="Listing ID"
+        type="text"
+        name="template-id"
+        id="template-id"
+        placeholder="Template ID"
         bind:value={listingId}
       />
     </div>
@@ -87,17 +175,43 @@
       />
     </div>
     <div class="input">
-      <label for="image-url">Image URL</label>
+      <label for="seller-email">Seller E-mail</label>
       <input
-        type="url"
-        name="image-url"
-        id="image-url"
-        placeholder="Image URL"
-        bind:value={imageUrl}
+        type="email"
+        name="seller-email"
+        id="seller-email"
+        placeholder="Seller E-mail"
+        bind:value={sellerEmail}
       />
     </div>
-    <button disabled={buttonDisabled} type="submit">Create</button>
+    <!-- <div class="input">
+      <label for="picture-url">Picture</label>
+      <input
+        type="file"
+        accept="image/png, image/gif, image/jpeg"
+        name="picture-url"
+        id="picture-url"
+        placeholder="Picture URL"
+        bind:files={pictureFiles}
+      />
+    </div> -->
+    <div class="input">
+      <label for="listing-url">Listing URL</label>
+      <input
+        type="url"
+        name="listing-url"
+        id="listing-url"
+        placeholder="Listing URL"
+        bind:value={listingUrl}
+      />
+    </div>
+    {#if loading}
+      <h4>Loading...</h4>
+    {:else}
+      <button disabled={buttonDisabled} type="submit">Create</button>
+    {/if}
   </form>
+  <button on:click={cleanCache}>Clean Cache</button>
 </main>
 
 <style>
@@ -126,18 +240,34 @@
 
   .input label {
     display: inline-block;
-    flex: 0 0 100px;
+    flex: 0 0 150px;
   }
 
-  .input input {
+  .input input,
+  .input textarea,
+  .input select {
     font-size: 16px;
     padding: 4px;
     flex: 1 1 100%;
     margin: 0;
   }
 
-  button {
+  button[type="submit"] {
     margin-top: 32px;
     width: 100%;
+  }
+
+  .message {
+    border: 1px solid #1565c0;
+    background-color: #1565c0;
+    width: 100%;
+    padding: 12px 48px;
+    width: 700px;
+    color: white;
+  }
+
+  .message.error {
+    border-color: #c62828;
+    background-color: #c62828;
   }
 </style>
