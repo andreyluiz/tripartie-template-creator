@@ -14,6 +14,8 @@
   let sellerEmail = cache.sellerEmail || "";
   let pictureFiles = [];
   let listingUrl = cache.listingUrl || "";
+  let allowInPerson = cache.allowInPerson || false;
+  let allowDelivery = cache.allowDelivery || false;
   let buttonDisabled = false;
   let message = { error: false, text: "" };
   let loading = false;
@@ -32,6 +34,8 @@
         sellerId = cache.sellerId;
         sellerEmail = cache.sellerEmail;
         listingUrl = cache.listingUrl;
+        allowInPerson = cache.allowInPerson;
+        allowDelivery = cache.allowDelivery;
       } catch (e) {
         cache = {};
       }
@@ -58,7 +62,9 @@
         currency,
         listingId,
         pictureFiles[0],
-        listingUrl
+        listingUrl,
+        allowInPerson,
+        allowDelivery
       );
       showMessage("Template created. Check admin dashboard to find it.");
     } catch (e) {
@@ -96,6 +102,8 @@
     currency,
     listingId,
     listingUrl,
+    allowInPerson,
+    allowDelivery,
   };
 </script>
 
@@ -205,6 +213,24 @@
         bind:value={listingUrl}
       />
     </div>
+    <div class="input">
+      <label for="listing-url">Allow in person</label>
+      <input
+        type="checkbox"
+        name="allow-in-person"
+        id="allow-in-person"
+        bind:checked={allowInPerson}
+      />
+    </div>
+    <div class="input">
+      <label for="listing-url">Allow delivery</label>
+      <input
+        type="checkbox"
+        name="allow-delivery"
+        id="allow-delivery"
+        bind:checked={allowDelivery}
+      />
+    </div>
     {#if loading}
       <h4>Loading...</h4>
     {:else}
@@ -250,6 +276,10 @@
     padding: 4px;
     flex: 1 1 100%;
     margin: 0;
+  }
+
+  .input input[type="checkbox"] {
+    justify-self: start;
   }
 
   button[type="submit"] {

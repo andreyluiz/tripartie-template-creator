@@ -22,7 +22,9 @@ export const createTemplate = async (
   currency,
   listingId,
   pictureFile,
-  listingUrl
+  listingUrl,
+  allowInPerson,
+  allowDelivery
 ) => {
   const usersApi = new TripartieWebApi.UsersApi();
   let user;
@@ -61,6 +63,8 @@ export const createTemplate = async (
     productCategory: "other",
     allowPriceChange: false,
     adUrl: listingUrl,
+    allowInPerson,
+    allowDelivery,
   };
   await transactionTemplatesApi.create(template);
 };
